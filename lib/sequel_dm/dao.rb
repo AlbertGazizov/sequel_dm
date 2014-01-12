@@ -1,0 +1,2 @@
+class SequelDM::DAO
+end
