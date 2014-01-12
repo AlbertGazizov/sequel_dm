@@ -1,4 +1,5 @@
 require 'sequel_dm/associations'
+require 'sequel'
 
 class SequelDM::DAO < Sequel::Model(:users)
   extend SequelDM::Associations
