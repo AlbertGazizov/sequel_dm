@@ -16,10 +16,6 @@ And then execute:
 
     $ bundle
 
-Or install it yourself as:
-
-    $ gem install sequel_dm
-
 ## Contributing
 
 1. Fork it
