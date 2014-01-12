@@ -1,6 +1,7 @@
 module SequelDM::Associations
 
   # Overrides Sequel::Model.one_to_many method to allow use our mappers
+  # NOTE: this should be refactored, cause it's ugly now
   def def_one_to_many(opts)
     one_to_one = opts[:type] == :one_to_one
     name = opts[:name]
