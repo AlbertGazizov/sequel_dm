@@ -1,7 +1,7 @@
 require 'sequel_dm/associations'
 require 'sequel'
 
-class SequelDM::DAO < Sequel::Model(:users)
+class SequelDM::DAO < Class.new(Sequel::Model)
   extend SequelDM::Associations
   class_attribute :mapper
 
