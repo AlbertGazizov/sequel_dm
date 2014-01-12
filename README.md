@@ -10,7 +10,7 @@ NOTE: This gem is not production ready, it needs a lot of work!
 
 Add this line to your application's Gemfile:
 
-    gem 'ioc_rb'
+    gem 'sequel_dm', github: 'AlbertGazizov/sequel_dm'
 
 And then execute:
 
@@ -18,7 +18,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install ioc_rb
+    $ gem install sequel_dm
 
 ## Contributing
 
