@@ -3,6 +3,7 @@
 
 
 SequelDM is a Sequel based Data Mapper pattern implementation
+NOTE: this gem is not production ready!
 
 ## Installation
 
