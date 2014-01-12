@@ -29,6 +29,24 @@ module SequelDM::ArgsValidator
       end
     end
 
+    # Checks that specifid +obj+ is a Class
+    # @param obj some object
+    # @param obj_name object's name, used to clarify error causer in exception
+    def is_class!(obj, obj_name)
+      unless obj.is_a?(Class)
+        raise ArgumentError, "#{obj_name} should be a Class"
+      end
+    end
+
+    # Checks that specifid +obj+ is a Proc
+    # @param obj some object
+    # @param obj_name object's name, used to clarify error causer in exception
+    def is_proc!(obj, obj_name)
+      unless obj.is_a?(Proc)
+        raise ArgumentError, "#{obj_name} should be a Proc"
+      end
+    end
+
     # Checks that specifid +hash+ has a specified +key+
     # @param hash some hash
     # @param key hash's key

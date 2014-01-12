@@ -1,3 +1,6 @@
+require 'sequel_dm/args_validator'
+require 'sequel_dm/mappings_dsl'
+
 module SequelDM::Mapper
   extend ActiveSupport::Concern
 
@@ -7,9 +10,9 @@ module SequelDM::Mapper
 
   module ClassMethods
     def map(entity_class, &mappings_proc)
-      Utils::ArgsValidator.is_class!(entity_class, :entity_class)
+      SequelDM::ArgsValidator.is_class!(entity_class, :entity_class)
       self.entity_class = entity_class
-      self.mappings     = Database::MappingsDSL.new(&mappings_proc).mappings
+      self.mappings     = SequelDM::MappingsDSL.new(&mappings_proc).mappings
     end
 
     def to_entity(hash)

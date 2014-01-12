@@ -27,7 +27,7 @@ describe SequelDM::Mapper do
 
   describe ".to_entity" do
     it "should build Event instance from hash using mappings" do
-      tomorrow = Time.now.tomorrow
+      tomorrow = Time.now + 24*60*60
       event = MapperTest::EventMapper.to_entity({
         subject:     "Meet parents",
         description: "I need to meet them",

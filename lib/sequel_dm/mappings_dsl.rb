@@ -6,11 +6,11 @@ class SequelDM::MappingsDSL
   end
 
   def column(column_name, options = {})
-    Utils::ArgsValidator.is_symbol!(column_name, :column_name)
-    Utils::ArgsValidator.is_hash!(options, :column_options)
-    Utils::ArgsValidator.is_symbol!(options[:to], :to) if options[:to]
-    Utils::ArgsValidator.is_proc!(options[:load], :load) if options[:load]
-    Utils::ArgsValidator.is_proc!(options[:dump], :dump) if options[:dump]
+    SequelDM::ArgsValidator.is_symbol!(column_name, :column_name)
+    SequelDM::ArgsValidator.is_hash!(options, :column_options)
+    SequelDM::ArgsValidator.is_symbol!(options[:to], :to) if options[:to]
+    SequelDM::ArgsValidator.is_proc!(options[:load], :load) if options[:load]
+    SequelDM::ArgsValidator.is_proc!(options[:dump], :dump) if options[:dump]
 
     set_field = options[:set_field] == false ? false : true
     mappings[column_name] = Mapping.new(
@@ -23,7 +23,7 @@ class SequelDM::MappingsDSL
   end
 
   def columns(*column_names)
-    Utils::ArgsValidator.is_array!(column_names, :column_names)
+    SequelDM::ArgsValidator.is_array!(column_names, :column_names)
     column_names.each { |column_name| column(column_name) }
   end
 
