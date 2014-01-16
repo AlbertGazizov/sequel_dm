@@ -16,6 +16,8 @@ module SequelDM
         if fields.empty?
           if !model.association_reflections.empty?
             eager(model.association_reflections.keys)
+          else
+            self
           end
         else
           eager_associations = {}
