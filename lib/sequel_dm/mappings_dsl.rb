@@ -12,13 +12,15 @@ class SequelDM::MappingsDSL
     SequelDM::ArgsValidator.is_proc!(options[:load], :load) if options[:load]
     SequelDM::ArgsValidator.is_proc!(options[:dump], :dump) if options[:dump]
 
-    set_field = options[:set_field] == false ? false : true
+    set_field  = options[:set_field] == false ? false : true
+    set_column = options[:set_column] == false ? false : true
     mappings[column_name] = Mapping.new(
       column_name,
       options[:to] || column_name,
       options[:load],
       options[:dump],
       set_field,
+      set_column,
     )
   end
 
@@ -30,16 +32,21 @@ class SequelDM::MappingsDSL
   class Mapping
     attr_accessor :column_name, :entity_field, :load, :dump
 
-    def initialize(column_name, entity_field, load = nil, dump = nil, set_field = true)
+    def initialize(column_name, entity_field, load = nil, dump = nil, set_field = true, set_column = true)
       @column_name   = column_name
       @entity_field  = entity_field
       @load          = load
       @dump          = dump
       @set_field     = set_field
+      @set_column    = set_column
     end
 
     def set_field?
       @set_field
+    end
+
+    def set_column?
+      @set_column
     end
 
     def load?

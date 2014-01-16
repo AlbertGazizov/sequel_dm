@@ -36,12 +36,12 @@ module SequelDM::Mapper
         entity_mappings.each do |column, mapping|
           new_column_value = to_column(entity, mapping, *args)
           previous_column_value = persistance_state[column]
-          hash[column] = new_column_value if column_value_changed?(previous_column_value, new_column_value)
+          hash[column] = new_column_value if column_value_changed?(previous_column_value, new_column_value) && mapping.set_column?
         end
       else
         entity_mappings = self.mappings
         entity_mappings.each do |column, mapping|
-          hash[column] = to_column(entity, mapping, *args)
+          hash[column] = to_column(entity, mapping, *args) if mapping.set_column?
         end
       end
 
