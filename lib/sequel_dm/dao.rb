@@ -14,8 +14,8 @@ module SequelDM
     dataset_module do
       def select_fields(fields)
         if fields.empty?
-          if !association_reflections.empty?
-            eager(association_reflections.keys)
+          if !model.association_reflections.empty?
+            eager(model.association_reflections.keys)
           end
         else
           eager_associations = {}
