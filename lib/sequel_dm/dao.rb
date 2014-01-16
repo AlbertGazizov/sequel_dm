@@ -13,6 +13,7 @@ module SequelDM
 
     dataset_module do
       def select_fields(fields)
+        return if fields.empty?
         eager_associations = {}
         fields.each do |association, columns|
           next if association == :fields
