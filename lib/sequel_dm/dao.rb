@@ -13,27 +13,32 @@ module SequelDM
 
     dataset_module do
       def select_fields(fields)
-        return if fields.empty?
-        eager_associations = {}
-        fields.each do |association, columns|
-          next if association == :fields
-          if columns && !columns.is_a?(Array)
-            columns = get_columns_from_mapper(association)
+        if fields.empty?
+          if !association_reflections.empty?
+            eager(association_reflections.keys)
           end
-          if columns
-            table_name = model.association_reflections[association][:class].table_name
-            columns = columns.map { |column| :"#{table_name}__#{column}___#{column}" }
-            eager_associations[association] = proc{|ds| ds.select(*columns) }
-          end
-        end
-
-        if fields[:fields].is_a?(Array)
-          columns = fields[:fields]
         else
-          columns = model.mapper.mappings.keys
+          eager_associations = {}
+          fields.each do |association, columns|
+            next if association == :fields
+            if columns && !columns.is_a?(Array)
+              columns = get_columns_from_mapper(association)
+            end
+            if columns
+              table_name = model.association_reflections[association][:class].table_name
+              columns = columns.map { |column| :"#{table_name}__#{column}___#{column}" }
+              eager_associations[association] = proc{|ds| ds.select(*columns) }
+            end
+          end
+
+          if fields[:fields].is_a?(Array)
+            columns = fields[:fields]
+          else
+            columns = model.mapper.mappings.keys
+          end
+          columns = columns.map { |column| :"#{model.table_name}__#{column}___#{column}" }
+          eager(eager_associations).select(*columns)
         end
-        columns = columns.map { |column| :"#{model.table_name}__#{column}___#{column}" }
-        eager(eager_associations).select(*columns)
       end
 
       private
