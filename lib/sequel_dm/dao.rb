@@ -49,7 +49,7 @@ module SequelDM
 
     class << self
       def set_mapper(mapper)
-        Utils::ArgsValidator.is_symbol_or_class!(mapper, :mapper)
+        SequelDM::ArgsValidator.is_symbol_or_class!(mapper, :mapper)
         unless mapper.is_a?(Class)
           # e.g. Database::Mappers::EventMapper
           mapper = Database::Mappers.const_get(mapper.to_s.camelize, false)

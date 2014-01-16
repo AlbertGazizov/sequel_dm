@@ -47,6 +47,15 @@ module SequelDM::ArgsValidator
       end
     end
 
+    # Checks that specifid +obj+ is a symbol or Class
+    # @param obj some object
+    # @param obj_name object's name, used to clarify error causer in exception
+    def is_symbol_or_class!(obj, obj_name)
+      if !obj.is_a?(Symbol) && !obj.is_a?(Class)
+        raise ArgumentError, "#{obj_name} should be a Symbol or Class"
+      end
+    end
+
     # Checks that specifid +hash+ has a specified +key+
     # @param hash some hash
     # @param key hash's key
