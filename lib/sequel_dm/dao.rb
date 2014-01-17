@@ -74,7 +74,7 @@ module SequelDM
       def insert(entity, root = nil)
         raw = mapper.to_hash(entity, root)
         key = dataset.insert(raw)
-        if key != 0
+        if key
           if primary_key.is_a?(Array)
             primary_key.each do |primary_key_part|
               entity.send("#{primary_key_part}=", key)
