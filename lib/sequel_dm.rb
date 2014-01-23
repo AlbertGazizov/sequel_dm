@@ -1,5 +1,6 @@
 require 'active_support/concern'
 require 'active_support/core_ext/class/attribute'
+require 'sequel'
 require 'sequel_dm/version'
 require 'sequel_dm/mapper'
 require 'sequel_dm/dao'

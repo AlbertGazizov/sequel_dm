@@ -1,5 +1,4 @@
-require 'sequel_dm/associations'
-require 'sequel'
+require 'sequel_dm/extensions/select_fields'
 
 SequelDM::DAO = Class.new(Sequel::Model)
 module SequelDM
@@ -8,64 +7,99 @@ module SequelDM
   end
 
   class DAO
-    extend SequelDM::Associations
     class_attribute :mapper
 
     dataset_module do
-      def select_fields(fields)
-        if fields.empty?
-          if !model.association_reflections.empty?
-            eager(model.association_reflections.keys)
-          else
-            self
-          end
-        else
-          eager_associations = {}
-          fields.each do |association, columns|
-            next if association == :fields
-            if columns && !columns.is_a?(Array)
-              columns = get_columns_from_mapper(association)
-            end
-            if columns
-              table_name = model.association_reflections[association][:class].table_name
-              columns = columns.map { |column| :"#{table_name}__#{column}___#{column}" }
-              eager_associations[association] = proc{|ds| ds.select(*columns) }
-            end
-          end
-
-          if fields[:fields].is_a?(Array)
-            columns = fields[:fields]
-          else
-            columns = model.mapper.mappings.keys
-          end
-          columns = columns.map { |column| :"#{model.table_name}__#{column}___#{column}" }
-          eager(eager_associations).select(*columns)
-        end
-      end
-
-      private
-
-      def get_columns_from_mapper(association)
-        reflection = model.association_reflections[association]
-        raise ArgumentError, "association with name #{association} is not defined in dao" unless reflection
-        association_dao = reflection[:class]
-        raise ArgumentError, "association #{association} should have class option" unless association_dao
-        association_dao.mapper.mappings.keys
-      end
+      include SequelDM::Extensions::SelectFields
     end
 
     class << self
-      def set_mapper(mapper)
-        SequelDM::ArgsValidator.is_symbol_or_class!(mapper, :mapper)
-        unless mapper.is_a?(Class)
-          # e.g. Database::Mappers::EventMapper
-          mapper = Database::Mappers.const_get(mapper.to_s.camelize, false)
+      def def_one_to_many(opts)
+        one_to_one = opts[:type] == :one_to_one
+        name = opts[:name]
+        model = self
+        key = (opts[:key] ||= opts.default_key)
+        km = opts[:key_method] ||= opts[:key]
+        cks = opts[:keys] = Array(key)
+        opts[:key_methods] = Array(opts[:key_method])
+        primary_key = (opts[:primary_key] ||= self.primary_key)
+        opts[:eager_loader_key] = primary_key unless opts.has_key?(:eager_loader_key)
+        cpks = opts[:primary_keys] = Array(primary_key)
+        pkc = opts[:primary_key_column] ||= primary_key
+        pkcs = opts[:primary_key_columns] ||= Array(pkc)
+        raise(Error, "mismatched number of keys: #{cks.inspect} vs #{cpks.inspect}") unless cks.length == cpks.length
+        uses_cks = opts[:uses_composite_keys] = cks.length > 1
+        slice_range = opts.slice_range
+        opts[:dataset] ||= proc do
+          opts.associated_dataset.where(opts.predicate_keys.zip(cpks.map{|k| send(k)}))
         end
-        self.dataset.row_proc = Proc.new do |hash|
-          entity = mapper.to_entity(hash)
-          entity.instance_variable_set(:@persistance_state, hash)
+        opts[:eager_loader] = proc do |eo|
+          h = eo[:id_map]
+          rows = eo[:rows]
+          reciprocal = opts.reciprocal
+          klass = opts.associated_class
+          filter_keys = opts.predicate_key
+          ds = model.eager_loading_dataset(opts, klass.where(filter_keys=>h.keys), nil, eo[:associations], eo)
+          assign_singular = true if one_to_one
+          case opts.eager_limit_strategy
+          when :distinct_on
+            ds = ds.distinct(*filter_keys).order_prepend(*filter_keys)
+          when :window_function
+            delete_rn = true
+            rn = ds.row_number_column
+            ds = apply_window_function_eager_limit_strategy(ds, opts)
+          when :ruby
+            assign_singular = false if one_to_one && slice_range
+          end
+          if assign_singular
+            rows.each{|object| object.send("#{name}=", nil) }
+          else
+            rows.each{|object| object.send("#{name}=", []) }
+          end
+          ds.all do |assoc_record|
+            assoc_record.values.delete(rn) if delete_rn
+            hash_key = uses_cks ? km.map{|k| assoc_record.send(k)} : assoc_record.send(km)
+            next unless objects = h[hash_key]
+            if assign_singular
+              objects.each do |object|
+                unless object.send(name)
+                  # TODO: add persistance_associations update here
+                  object.send("#{name}=", assoc_record)
+                  assoc_record.send("#{reciprocal}=", object) if reciprocal
+                end
+              end
+            else
+              objects.each do |object|
+                add_to_associations_state(object, name, assoc_record)
+                object.send(name).push(assoc_record)
+                assoc_record.send("#{reciprocal}=", object) if reciprocal
+              end
+            end
+          end
+          if opts.eager_limit_strategy == :ruby
+            if one_to_one
+              if slice_range
+                rows.each{|o| o.associations[name] = o.associations[name][slice_range.begin]}
+              end
+            else
+              rows.each{|o| o.associations[name] = o.associations[name][slice_range] || []}
+            end
+          end
+        end
+        super
+      end
+
+      def set_dataset_row_proc(ds)
+        ds.row_proc = Proc.new do |raw|
+          raise StandardError, "Mapper should be specified" if !self.mapper
+          entity = self.mapper.to_entity(raw)
+          save_state(entity, raw)
           entity
         end
+      end
+
+      def set_mapper(mapper)
+        SequelDM::ArgsValidator.is_class!(mapper, :mapper)
         self.mapper = mapper
       end
 
@@ -74,24 +108,9 @@ module SequelDM
       def insert(entity, root = nil)
         raw = mapper.to_hash(entity, root)
         key = dataset.insert(raw)
-        if key
-          if primary_key.is_a?(Array)
-            primary_key.each do |primary_key_part|
-              entity.send("#{primary_key_part}=", key)
-              raw[primary_key_part] = key
-            end
-          else
-            entity.send("#{primary_key}=", key)
-            raw[primary_key] = key
-          end
-        end
-        entity.instance_variable_set(:@persistance_state, raw)
-        unless association_reflections.empty?
-          association_reflections.each do |association, options|
-            association_dao = options[:class]
-            association_dao.insert_all(entity.send(association), entity)
-          end
-        end
+        set_entity_primary_key(entity, raw, key)
+        save_state(entity, raw)
+        insert_associations(entity)
         entity
       end
 
@@ -103,31 +122,13 @@ module SequelDM
 
       def update(entity, root = nil)
         raw = mapper.to_hash(entity, root)
-        entity.instance_variable_get(:@persistance_state).merge!(raw)
-        key_condition = {}
-        if primary_key.is_a?(Array)
-          primary_key.each do |key_part|
-            key_part_value = raw.delete(key_part)
-            raise ArgumentError, "entity's primary key can't be nil, got nil for #{key_part}" unless key_part_value
-            key_condition[key_part] = key_part_value
-          end
-        else
-          key_value = raw.delete(primary_key)
-          raise ArgumentError, "entity's primary key can't be nil, got nil for #{primary_key}" unless key_value
-          key_condition[primary_key] = key_value
-        end
+
+        update_state(entity, raw)
+
+        key_condition = prepare_key_condition_from_entity(entity)
         dataset.where(key_condition).update(raw) unless raw.empty?
 
-        unless association_reflections.empty?
-          association_reflections.each do |association, options|
-            association_dao = options[:class]
-            children = entity.send(association)
-            conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
-            association_dao.where(conditions).exclude(association_dao.primary_key => children.map(&association_dao.primary_key)).delete
-            association_dao.save_all(children, entity)
-          end
-        end
-
+        insert_or_update_associations(entity)
         entity
       end
 
@@ -137,14 +138,12 @@ module SequelDM
         end
       end
 
-      # @todod some entities use different than id primary key
       def save(entity, root = nil)
-        if primary_key.is_a?(Array)
-          persisted = primary_key.all? { |key_part| entity.send(key_part) }
+        if has_persistance_state?(entity)
+          update(entity, root)
         else
-          persisted = entity.send(primary_key)
+          insert(entity, root)
         end
-        persisted ? update(entity, root) : insert(entity, root)
       end
 
       def save_all(entities, root = nil)
@@ -156,15 +155,10 @@ module SequelDM
       def delete(entity)
         key_condition = prepare_key_condition(entity)
         dataset.where(key_condition).delete
-        unless association_reflections.empty?
-          association_reflections.each do |association, options|
-            association_dao = options[:class]
-            conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
-            association_dao.where(conditions).delete
-          end
-        end
+        delete_associations(entity)
       end
 
+      # TODO: refactor
       def delete_all(entities)
         entity_ids = entities.map(&:id)
         dataset.where(id: entity_ids).delete
@@ -179,7 +173,38 @@ module SequelDM
 
       private
 
-      def prepare_key_condition(entity)
+      def save_state(entity, raw)
+        if !entity.is_a?(Integer) && !entity.is_a?(Symbol)
+          entity.instance_variable_set(:@persistance_state, raw)
+        end
+      end
+
+      def update_state(entity, raw)
+        persistance_state = entity.instance_variable_get(:@persistance_state)
+        if persistance_state
+          persistance_state.merge!(raw)
+        end
+      end
+
+      def has_persistance_state?(entity)
+        !!entity.instance_variable_get(:@persistance_state)
+      end
+
+      def set_associations_state(entity, association_name, associations)
+        persistance_associations = entity.instance_variable_get(:@persistance_associations) || {}
+        persistance_associations[association_name] ||= []
+        persistance_associations[association_name] |= associations
+        entity.instance_variable_set(:@persistance_associations, persistance_associations)
+      end
+
+      def add_to_associations_state(entity, association_name, association)
+        persistance_associations = entity.instance_variable_get(:@persistance_associations) || {}
+        persistance_associations[association_name] ||= []
+        persistance_associations[association_name] << association
+        entity.instance_variable_set(:@persistance_associations, persistance_associations)
+      end
+
+      def prepare_key_condition_from_entity(entity)
         key_condition = {}
         if primary_key.is_a?(Array)
           primary_key.each do |key_part|
@@ -194,6 +219,87 @@ module SequelDM
         end
         key_condition
       end
+
+      def set_entity_primary_key(entity, raw, key)
+        if key && !primary_key.is_a?(Array)
+          entity.send("#{primary_key}=", key)
+          raw[primary_key] = key
+        end
+      end
+
+      def insert_associations(entity)
+        unless association_reflections.empty?
+          association_reflections.each do |association_name, options|
+            association_dao = options[:class]
+            children = association_dao.insert_all(entity.send(association_name), entity)
+            set_associations_state(entity, association_name, children)
+          end
+        end
+      end
+
+      def insert_or_update_associations(entity)
+        unless association_reflections.empty?
+          association_reflections.each do |association_name, options|
+            association_dao = options[:class]
+            raise ArgumentError, "class option should be specified for #{association_name}" unless association_dao
+
+            delete_dissapeared_children(entity, association_name, options)
+
+            children = entity.send(association_name)
+            association_dao.save_all(children, entity)
+            set_associations_state(entity, association_name, children)
+          end
+        end
+      end
+
+      def delete_associations(entity)
+        unless association_reflections.empty?
+          association_reflections.each do |association, options|
+            if options[:delete]
+              association_dao = options[:class]
+              conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
+              association_dao.where(conditions).delete
+            end
+          end
+        end
+      end
+
+      def delete_dissapeared_children(entity, association, options)
+        association_dao = options[:class]
+        unless options[:key]
+          raise ArgumentError, "key option should be specified for #{association}"
+        end
+        conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
+
+        # get ids of removed children
+        association_objects = get_association_objects(entity, association)
+        dissapeared_objects = association_objects - entity.send(association)
+
+        scope_key = options[:scope_key] || association_dao.primary_key
+        if scope_key.is_a?(Array)
+          raise StandardError, "scope_key can't be Array, specify scope_key option for #{association} association"
+        end
+
+        child_keys = { scope_key => [] }
+        dissapeared_objects.each do |child_object|
+          key = child_object.send(scope_key)
+          child_keys[scope_key] << key
+        end
+
+        if !child_keys[scope_key].empty?
+          association_dao.where(conditions).where(child_keys).delete
+        end
+      end
+
+      def get_association_objects(entity, association)
+        persistance_associations = entity.instance_variable_get(:@persistance_associations)
+        if persistance_associations
+          persistance_associations[association] || []
+        else
+          []
+        end
+      end
+
     end
   end
 
