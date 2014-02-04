@@ -276,18 +276,30 @@ module SequelDM
         dissapeared_objects = association_objects - entity.send(association)
 
         scope_key = options[:scope_key] || association_dao.primary_key
-        if scope_key.is_a?(Array)
-          raise StandardError, "scope_key can't be Array, specify scope_key option for #{association} association"
-        end
+        if scope_key.is_a?(Symbol)
+          child_keys = { scope_key => [] }
+          dissapeared_objects.each do |child_object|
+            key = child_object.send(scope_key)
+            child_keys[scope_key] << key
+          end
 
-        child_keys = { scope_key => [] }
-        dissapeared_objects.each do |child_object|
-          key = child_object.send(scope_key)
-          child_keys[scope_key] << key
-        end
-
-        if !child_keys[scope_key].empty?
-          association_dao.where(conditions).where(child_keys).delete
+          if !child_keys[scope_key].empty?
+            association_dao.where(conditions).where(child_keys).delete
+          end
+        elsif scope_key.is_a?(Array)
+          child_keys = []
+          dissapeared_objects.each do |child_object|
+            child_keys << scope_key.inject({}) do |condition, key|
+              condition[key] = child_object.send(key)
+              condition
+            end
+          end
+          if !child_keys.empty?
+            child_keys.each { |keys| keys.merge!(conditions) }
+            association_dao.where(child_keys).delete
+          end
+        else
+          raise StandardError, "scope key should be array or symbol"
         end
       end
 
