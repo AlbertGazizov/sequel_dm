@@ -123,10 +123,12 @@ module SequelDM
       def update(entity, root = nil)
         raw = mapper.to_hash(entity, root)
 
-        update_state(entity, raw)
+        unless raw.empty?
+          update_state(entity, raw)
 
-        key_condition = prepare_key_condition_from_entity(entity)
-        dataset.where(key_condition).update(raw) unless raw.empty?
+          key_condition = prepare_key_condition_from_entity(entity)
+          dataset.where(key_condition).update(raw)
+        end
 
         insert_or_update_associations(entity)
         entity
@@ -212,10 +214,12 @@ module SequelDM
             raise ArgumentError, "entity's primary key can't be nil, got nil for #{key_part}" unless key_part_value
             key_condition[key_part] = key_part_value
           end
-        else
+        elsif primary_key.is_a?(Symbol)
           key_value = entity.send(primary_key)
           raise ArgumentError, "entity's primary key can't be nil, got nil for #{primary_key}" unless key_value
           key_condition[primary_key] = key_value
+        else
+          raise StandardError, "primary key should be array or symbol"
         end
         key_condition
       end
@@ -293,6 +297,15 @@ module SequelDM
               condition[key] = child_object.send(key)
               condition
             end
+          end
+          if !child_keys.empty?
+            child_keys.each { |keys| keys.merge!(conditions) }
+            association_dao.where(child_keys).delete
+          end
+        elsif scope_key.is_a?(Proc)
+          child_keys = []
+          dissapeared_objects.each do |child_object|
+            child_keys << scope_key.call(child_object)
           end
           if !child_keys.empty?
             child_keys.each { |keys| keys.merge!(conditions) }
