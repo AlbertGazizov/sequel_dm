@@ -155,7 +155,7 @@ module SequelDM
       end
 
       def delete(entity)
-        key_condition = prepare_key_condition(entity)
+        key_condition = prepare_key_condition_from_entity(entity)
         dataset.where(key_condition).delete
         delete_associations(entity)
       end
