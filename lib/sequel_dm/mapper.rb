@@ -27,22 +27,12 @@ module SequelDM::Mapper
     end
 
     def to_hash(entity, *args)
-      # if it's insert then map all fields, else only loaded
       hash = {}
-      if entity.instance_variable_defined?(:@persistance_state)
-        persistance_state = entity.instance_variable_get(:@persistance_state)
-        entity_mappings = self.mappings.select { |column, mapping| persistance_state.has_key?(mapping.column_name) }
-        entity_mappings.each do |column, mapping|
-          new_column_value = to_column(entity, mapping, *args)
-          previous_column_value = persistance_state[column]
-          hash[column] = new_column_value if mapping.set_column? && column_value_changed?(previous_column_value, new_column_value)
-        end
-      else
-        entity_mappings = self.mappings
-        entity_mappings.each do |column, mapping|
-          value = to_column(entity, mapping, *args)
-          hash[column] = value if value && mapping.set_column?
-        end
+
+      entity_mappings = self.mappings
+      entity_mappings.each do |column, mapping|
+        value = to_column(entity, mapping, *args)
+        hash[column] = value if value && mapping.set_column?
       end
 
       hash
@@ -56,10 +46,6 @@ module SequelDM::Mapper
 
     def to_column(entity, mapping, *args)
       mapping.dump? ? mapping.dump(entity, *args) : entity.send(mapping.entity_field)
-    end
-
-    def column_value_changed?(previous_value, new_value)
-      previous_value != new_value
     end
 
   end

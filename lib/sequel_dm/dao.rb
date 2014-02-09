@@ -122,6 +122,7 @@ module SequelDM
 
       def update(entity, root = nil)
         raw = mapper.to_hash(entity, root)
+        raw = select_only_changed_values(entity, raw)
 
         unless raw.empty?
           update_state(entity, raw)
@@ -174,6 +175,24 @@ module SequelDM
       end
 
       private
+
+      def select_only_changed_values(entity, hash)
+        changes = {}
+        return hash unless entity.instance_variable_defined?(:@persistance_state)
+
+        persistance_state = entity.instance_variable_get(:@persistance_state)
+        hash.each do |column, value|
+          previous_column_value = persistance_state[column]
+          if persistance_state.has_key?(column) && column_value_changed?(previous_column_value, value)
+            changes[column] = value
+          end
+        end
+        changes
+      end
+
+      def column_value_changed?(previous_value, new_value)
+        previous_value != new_value
+      end
 
       def save_state(entity, raw)
         if !entity.is_a?(Integer) && !entity.is_a?(Symbol)
