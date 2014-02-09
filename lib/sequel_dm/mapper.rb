@@ -17,10 +17,10 @@ module SequelDM::Mapper
 
     def to_entity(hash)
       attributes = {}
-      entity = self.entity_class.new
+      entity = self.entity_class.allocate
       hash.each do |key, value|
         if mapping = self.mappings[key]
-          entity.send("#{mapping.entity_field}=", to_attribute(hash, value, mapping)) if mapping.set_field?
+          entity.instance_variable_set(:"@#{mapping.entity_field}", to_attribute(hash, value, mapping)) if mapping.set_field?
         end
       end
       entity
