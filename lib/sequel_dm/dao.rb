@@ -51,11 +51,6 @@ module SequelDM
           when :ruby
             assign_singular = false if one_to_one && slice_range
           end
-          if assign_singular
-            rows.each{|object| object.send("#{name}=", nil) }
-          else
-            rows.each{|object| object.send("#{name}=", []) }
-          end
           ds.all do |assoc_record|
             assoc_record.values.delete(rn) if delete_rn
             hash_key = uses_cks ? km.map{|k| assoc_record.send(k)} : assoc_record.send(km)
