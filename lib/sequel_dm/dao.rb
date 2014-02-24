@@ -287,7 +287,13 @@ module SequelDM
         unless options[:key]
           raise ArgumentError, "key option should be specified for #{association}"
         end
-        conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
+        if options[:key].is_a?(Symbol)
+          conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
+        elsif options[:key].is_a?(Array)
+          conditions = options[:key].inject(options[:conditions] || {}) { |result, key| result[key] = entity.send(key); result }
+        else
+          raise ArgumentError, "key should be symbol or array"
+        end
 
         # get ids of removed children
         association_objects = get_association_objects(entity, association)
