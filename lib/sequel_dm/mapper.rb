@@ -32,7 +32,7 @@ module SequelDM::Mapper
       entity_mappings = self.mappings
       entity_mappings.each do |column, mapping|
         value = to_column(entity, mapping, *args)
-        hash[column] = value if value && mapping.set_column?
+        hash[column] = value if mapping.set_column?
       end
 
       hash
