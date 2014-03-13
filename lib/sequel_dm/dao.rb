@@ -322,7 +322,7 @@ module SequelDM
           end
           if !child_keys.empty?
             child_keys.each { |keys| keys.merge!(conditions) }
-            association_dao.where(child_keys).delete
+            association_dao.where(Sequel.|(*child_keys)).delete
           end
         elsif scope_key.is_a?(Proc)
           child_keys = []
