@@ -240,7 +240,7 @@ module SequelDM
 
       def set_entity_primary_key(entity, raw, key)
         if key && !primary_key.is_a?(Array)
-          entity.instance_variable_set("@#{primary_key}=", key)
+          entity.instance_variable_set("@#{primary_key}", key)
           raw[primary_key] = key
         end
       end
