@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sequel_dm (0.0.1)
+    sequel_dm (0.0.2)
       activesupport
       sequel (~> 4.6)
 
