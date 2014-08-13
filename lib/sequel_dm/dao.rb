@@ -84,6 +84,12 @@ module SequelDM
         super
       end
 
+      def associate(type, name, opts = OPTS, &block)
+        super.tap do
+          set_dataset(eager(name))
+        end
+      end
+
       def set_dataset_row_proc(ds)
         ds.row_proc = Proc.new do |raw|
           raise StandardError, "Mapper should be specified" if !self.mapper
