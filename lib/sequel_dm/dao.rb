@@ -269,6 +269,9 @@ module SequelDM
       def insert_or_update_associations(entity)
         unless association_reflections.empty?
           association_reflections.each do |association_name, options|
+            if options[:if] && !options[:if].call(entity)
+              next
+            end
             association_dao = options[:class]
             raise ArgumentError, "class option should be specified for #{association_name}" unless association_dao
 
@@ -284,6 +287,9 @@ module SequelDM
       def delete_associations(entity)
         unless association_reflections.empty?
           association_reflections.each do |association, options|
+            if options[:if] && !options[:if].call(entity)
+              next
+            end
             if options[:delete]
               association_dao = options[:class]
               conditions = (options[:conditions] || {}).merge(options[:key] => entity.send(primary_key))
