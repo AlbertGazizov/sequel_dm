@@ -254,6 +254,9 @@ module SequelDM
       def insert_associations(entity)
         unless association_reflections.empty?
           association_reflections.each do |association_name, options|
+            if options[:if] && !options[:if].call(entity)
+              next
+            end
             association_dao = options[:class]
             if entity.respond_to?(association_name)
               children = association_dao.insert_all(entity.send(association_name), entity)
