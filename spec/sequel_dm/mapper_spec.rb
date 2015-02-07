@@ -1,3 +1,4 @@
+require 'yaml'
 require 'spec_helper'
 
 describe SequelDM::Mapper do
