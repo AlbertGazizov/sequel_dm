@@ -121,6 +121,14 @@ module SequelDM
         end
       end
 
+      def multi_insert(entities)
+        raws = []
+        entities.each do |entity|
+          raws << mapper.to_hash(entity)
+        end
+        dataset.multi_insert(raws)
+      end
+
       def update(entity, root = nil)
         raw = mapper.to_hash(entity, root)
         raw = select_only_changed_values(entity, raw)
